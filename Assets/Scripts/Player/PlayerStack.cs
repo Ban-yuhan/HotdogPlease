@@ -12,6 +12,9 @@ public class PlayerStack : MonoBehaviour
     [Header("간격 세팅")]
     [SerializeField] private float ySpacing = 0.3f;
 
+    [Header("프리팹 기준 값")]
+    [SerializeField] private GameObject hotdogPrefab;
+
     private List<GameObject> stackedItems = new List<GameObject>();
 
 
@@ -47,7 +50,7 @@ public class PlayerStack : MonoBehaviour
         float yPos = index * ySpacing;
 
         hotdogObj.transform.localPosition = new Vector3(0f, yPos, 0f);
-        hotdogObj.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        hotdogObj.transform.localRotation = hotdogPrefab.transform.rotation;
 
         // 4. 리스트에 저장
         stackedItems.Add(hotdogObj);
@@ -63,6 +66,8 @@ public class PlayerStack : MonoBehaviour
         int lastIndex = stackedItems.Count - 1;
         GameObject itemToPop = stackedItems[lastIndex];
         stackedItems.RemoveAt(lastIndex);
+
+        UpdateUI();
 
         return itemToPop;
     }
