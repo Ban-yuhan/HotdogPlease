@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class CustomerManager : MonoBehaviour
@@ -36,7 +37,6 @@ public class CustomerManager : MonoBehaviour
 
     private void Update()
     {
-        // 줄 서 있는 손님이 최대 인원(6명)보다 적으면 계속 스폰
         if (customerQueue.Count < maxQueueCount)
         {
             timer += Time.deltaTime;
@@ -48,7 +48,6 @@ public class CustomerManager : MonoBehaviour
         }
     }
 
-    // 💡 [추가] 줄 번호(index)에 따른 좌표 계산 헬퍼 함수
     private Vector3 GetQueuePosition(int index)
     {
         return customerZone.position + (queueDirection.normalized * index * queueSpacing);
@@ -64,7 +63,6 @@ public class CustomerManager : MonoBehaviour
 
         Vector3 targetQueuePos = GetQueuePosition(queueIndex);
 
-        // 입장 경로: SpawnPoint -> DoorPosition -> 내 줄서기 위치
         List<Vector3> enterPath = new List<Vector3>
         {
             doorPosition.position,
@@ -73,7 +71,6 @@ public class CustomerManager : MonoBehaviour
 
         customer.SetPath(enterPath, () =>
         {
-            // 카운터 맨 앞(0번)에 도착한 손님만 주문 생성
             if (customerQueue.Count > 0 && customerQueue[0] == customer)
             {
                 customer.InitOrder(minOrder, maxOrder);
@@ -81,21 +78,66 @@ public class CustomerManager : MonoBehaviour
         });
     }
 
-    // 손님이 핫도그 다 받고 퇴장할 때
+    // 손님이 핫도그를 다 받았을 때 호출
     public void MakeCustomerLeave(Customer customer)
     {
         if (customer == null || !customerQueue.Contains(customer)) return;
 
-        if (moneyZone != null)
+        // 1. 카운터 대기열 목록에서 제거 및 뒤 손님들 앞으로 당기기
+        customerQueue.Remove(customer);
+        UpdateQueuePositions();
+
+        // 2. 테이블 이동 및 식사 프로세스 실행 (빈 테이블 탐색 코루틴)
+        StartCoroutine(ProcessCustomerTableOrWait(customer));
+    }
+
+    // 빈 테이블 탐색 -> 이동 -> 4초 식사 -> 쓰레기 스폰 -> 퇴장 처리 코루틴
+    private IEnumerator ProcessCustomerTableOrWait(Customer customer)
+    {
+        Table availableTable = null;
+
+        // 빈 테이블이 나올 때까지 반복 체크
+        while (availableTable == null)
         {
-            int earnedMoney = customer.requestedAmount * 100;
-            moneyZone.AddMoney(earnedMoney);
+            if (TableManager.Instance != null)
+            {
+                availableTable = TableManager.Instance.GetAvailableTable();
+            }
+
+            if (availableTable == null)
+            {
+                // 빈 테이블이 없으면 머리 위에 "No Table!" 표시 후 1초 대기
+                customer.ShowStatusText("No Table!");
+                yield return new WaitForSeconds(1.0f);
+            }
         }
 
-        // 1. 대기열(줄서기) 리스트에서 제외
-        customerQueue.Remove(customer);
+        // 빈 테이블 확보
+        availableTable.Occupy();
 
-        // 2. 퇴장 경로 리스트 만들기 (Pos 1 -> Pos 2 -> Pos 3 순서)
+        // 테이블 자릿수로 이동
+        List<Vector3> tablePath = new List<Vector3> { availableTable.CustomerPosition.position };
+
+        bool reachedTable = false;
+        customer.SetPath(tablePath, () => { reachedTable = true; });
+
+        yield return new WaitUntil(() => reachedTable);
+
+        // 4초 동안 식사 진행
+        customer.ShowStatusText("Eating...");
+        yield return new WaitForSeconds(4.0f);
+
+        // 식사 완료: 돈 배출 + 쓰레기 2~3개 스폰
+        int earnedMoney = customer.requestedAmount * 100;
+        availableTable.FinishEating(earnedMoney);
+
+        // 퇴장 경로 이동 후 오브젝트 삭제
+        SendCustomerToExit(customer);
+    }
+
+    // 퇴장 경로 (Pos 1 -> Pos 2 -> Pos 3)
+    private void SendCustomerToExit(Customer customer)
+    {
         List<Vector3> leavePath = new List<Vector3>
         {
             exitPos1.position,
@@ -103,27 +145,18 @@ public class CustomerManager : MonoBehaviour
             exitPos3.position
         };
 
-        // 3. 손님에게 퇴장 경로 전달 & 최종 목적지(Pos 3)에 도착하면 오브젝트 삭제
         customer.SetPath(leavePath, () =>
         {
             Destroy(customer.gameObject);
         });
-
-        // 4. 뒤에 서 있던 손님들 한 칸씩 앞으로 이동
-        UpdateQueuePositions();
     }
 
-    // 남은 손님들을 한 칸씩 앞으로 당겨주는 함수
     private void UpdateQueuePositions()
     {
         for (int i = 0; i < customerQueue.Count; i++)
         {
             Customer c = customerQueue[i];
             Vector3 newQueuePos = GetQueuePosition(i);
-
-            // 💡 [핵심 수정] c.SetPath(...) 대신 UpdateQueueTarget 호출!
-            // - 걸어오던 중인 손님: 기존 경유지(Door)를 거친 후 새로 당겨진 위치로 이동
-            // - 이미 줄에 서 있던 손님: 새 위치(한 칸 앞)로 스무스하게 이동
             c.UpdateQueueTarget(newQueuePos);
         }
     }

@@ -135,4 +135,11 @@ public class Customer : MonoBehaviour
             orderText.gameObject.SetActive(false);
         }
     }
+
+    public void ShowStatusText(string message)
+    {
+        if (orderText == null) return;
+        orderText.gameObject.SetActive(true);
+        orderText.text = message;
+    }
 }
