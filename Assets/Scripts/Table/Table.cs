@@ -9,18 +9,21 @@ public class Table : MonoBehaviour
     [SerializeField] private GameObject trashPrefab;     // 쓰레기 프리팹
     [SerializeField] private MoneyStackZone moneyZone;   // 테이블 전용 돈 구역
 
-    public bool HasTrash => spawnedTrashes.Count > 0;
+    [Header("쓰레기 수거 간격")]
+    [SerializeField] private float cleanInterval = 0.15f;
 
+    public bool HasTrash => spawnedTrashes.Count > 0;
     public Transform CustomerPosition => customerPosition;
     public MoneyStackZone TableMoneyZone => moneyZone;
 
     public bool IsOccupied { get; private set; } = false; // 손님이 앉아서 먹는 중인가?
-    public bool IsDirty { get; private set; } = false;    // 💡 오타 수정 완료! (쓰레기가 남아있는 상태)
+    public bool IsDirty { get; private set; } = false;    // 쓰레기가 남아있는 상태인가?
 
     // 손님이 앉을 수 있는 깨끗하고 비어있는 상태인지 확인
     public bool IsAvailable => !IsOccupied && !IsDirty;
 
     private List<GameObject> spawnedTrashes = new List<GameObject>();
+    private float cleanTimer = 0f;
 
     public bool Occupy()
     {
@@ -42,7 +45,7 @@ public class Table : MonoBehaviour
         }
 
         // 2. 쓰레기 2~3개 랜덤 생성
-        int trashCount = Random.Range(2, 4); // 2개 또는 3개
+        int trashCount = Random.Range(2, 4);
         Transform spawnOrigin = trashSpawnPoint != null ? trashSpawnPoint : transform;
 
         for (int i = 0; i < trashCount; i++)
@@ -53,7 +56,54 @@ public class Table : MonoBehaviour
         }
     }
 
-    // 플레이어/청소부가 쓰레기를 치울 때 호출할 함수
+    // 💡 플레이어가 테이블 콜라이더 영역 안에 들어와 있을 때 자동 수거
+    private void OnTriggerStay(Collider other)
+    {
+        if (other.CompareTag("Player") && HasTrash)
+        {
+            PlayerStack playerStack = other.GetComponent<PlayerStack>();
+            if (playerStack != null)
+            {
+                cleanTimer += Time.deltaTime;
+                if (cleanTimer >= cleanInterval)
+                {
+                    cleanTimer = 0f;
+                    CollectAllTrash(playerStack);
+                }
+            }
+        }
+    }
+
+    // 💡 쓰레기를 1개씩 손으로 옮기는 핵심 로직
+    public void CollectAllTrash(PlayerStack playerStack)
+    {
+        if (spawnedTrashes.Count == 0) return;
+
+        // 역순으로 순회하며 플레이어 손에 한 번에 담음
+        for (int i = spawnedTrashes.Count - 1; i >= 0; i--)
+        {
+            GameObject trash = spawnedTrashes[i];
+
+            // 플레이어 스택에 담기 성공 시 테이블 리스트에서 제거
+            if (playerStack.PushTrash(trash))
+            {
+                spawnedTrashes.RemoveAt(i);
+            }
+            else
+            {
+                // 플레이어 가방/손이 MAX에 도달하면 중단
+                break;
+            }
+        }
+
+        // 쓰레기를 모두 가져갔으면 깨끗한 상태로 변경
+        if (spawnedTrashes.Count == 0)
+        {
+            IsDirty = false;
+        }
+    }
+
+    // 외부(개발용/청소부 등)에서 무조건 강제로 청소할 때 호출할 함수
     public void ClearTrash()
     {
         foreach (GameObject trash in spawnedTrashes)
@@ -61,21 +111,6 @@ public class Table : MonoBehaviour
             if (trash != null) Destroy(trash);
         }
         spawnedTrashes.Clear();
-        IsDirty = false; // 다시 깨끗해져서 이용 가능!
-    }
-
-
-    public List<GameObject> PopAllTrash()
-    {
-        if (spawnedTrashes.Count == 0) return null;
-
-        // 현재 남아있는 쓰레기 목록 복사
-        List<GameObject> trashes = new List<GameObject>(spawnedTrashes);
-        spawnedTrashes.Clear();
-
-        // 테이블 상태 즉시 깨끗함으로 리셋
         IsDirty = false;
-
-        return trashes;
     }
 }

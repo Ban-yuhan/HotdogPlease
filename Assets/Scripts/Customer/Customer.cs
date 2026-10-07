@@ -1,145 +1,150 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 
 public class Customer : MonoBehaviour
 {
-    [SerializeField] private TMP_Text orderText; // 머리 위 주문 수량 표시
+    [SerializeField] private TMP_Text orderText; // 머리 위 텍스트 UI
     [SerializeField] private float moveSpeed = 3f;
 
-    public int requestedAmount { get; private set; }
-    public int currentAmount { get; private set; }
-    public bool IsSatisfied => requestedAmount > 0 && currentAmount >= requestedAmount;
+    public int requestedAmount { get; private set; } = 0;
+    public int currentAmount { get; private set; } = 0;
+    public bool IsSatisfied => currentAmount >= requestedAmount && requestedAmount > 0;
 
-    private List<Vector3> waypoints = new List<Vector3>();
-    private int currentWaypointIndex = 0;
-    private bool isMoving = false;
-    private System.Action onReachedDestination;
+    public bool IsAtCounter { get; private set; } = false; // 카운터 맨 앞(CustomerZone) 도착 여부
 
-    public bool IsWaitingAtCounter { get; private set; } // 카운터 도착 대기 상태
+    private Action onMoveComplete;
+    private List<Vector3> currentPath;
+    private int currentPathIndex;
 
-    // 💡 [추가] 줄 서기 위치에 완전히 도착했는지 여부
-    public bool IsQueueing { get; private set; } = false;
-
-    private void Start()
+    private void Awake()
     {
+        // 스폰 직후 머리 위 UI 비활성화
         if (orderText != null)
         {
             orderText.gameObject.SetActive(false);
         }
-    }
-
-    // 주문 초기화 (CustomerZone 도착 시 호출)
-    public void InitOrder(int min, int max)
-    {
-        requestedAmount = Random.Range(min, max + 1);
+        requestedAmount = 0;
         currentAmount = 0;
-
-        IsWaitingAtCounter = true;
-
-        UpdateUI();
-    }
-
-    // 매니저가 경로를 넘겨줄 때 호출 (최초 스폰 및 입장시)
-    public void SetPath(List<Vector3> pathPoints, System.Action onComplete = null)
-    {
-        IsWaitingAtCounter = false;
-        IsQueueing = false; // 💡 새 경로 출발 시 대기열도 미도착 상태로 리셋
-
-        waypoints = pathPoints;
-        currentWaypointIndex = 0;
-
-        // 💡 목적지 도착 시 IsQueueing을 true로 변경하도록 콜백 감싸기
-        onReachedDestination = () =>
-        {
-            IsQueueing = true;
-            onComplete?.Invoke();
-        };
-
-        isMoving = true;
-    }
-
-    // 💡 [추가] 줄이 당겨질 때 CustomerManager에서 호출할 함수
-    public void UpdateQueueTarget(Vector3 newTargetPos)
-    {
-        if (IsQueueing)
-        {
-            // 이미 줄에 도착해서 서 있던 손님: 한 칸 앞 지점으로 이동
-            waypoints = new List<Vector3> { newTargetPos };
-            currentWaypointIndex = 0;
-            isMoving = true;
-        }
-        else
-        {
-            // 걸어오는 중인 손님: 기존 경유지(Door 등)는 유지하고 맨 끝 최종 목적지만 새 위치로 교체!
-            if (waypoints != null && waypoints.Count > 0)
-            {
-                waypoints[waypoints.Count - 1] = newTargetPos;
-            }
-        }
     }
 
     private void Update()
     {
-        if (!isMoving || waypoints == null || waypoints.Count == 0) return;
+        MoveAlongPath();
+    }
 
-        Vector3 targetPos = waypoints[currentWaypointIndex];
-        targetPos.y = transform.position.y;
+    // 경로 이동 설정
+    public void SetPath(List<Vector3> path, Action onComplete = null)
+    {
+        currentPath = path;
+        currentPathIndex = 0;
+        onMoveComplete = onComplete;
+    }
 
-        transform.position = Vector3.MoveTowards(transform.position, targetPos, moveSpeed * Time.deltaTime);
+    private void MoveAlongPath()
+    {
+        if (currentPath == null || currentPathIndex >= currentPath.Count) return;
 
-        Vector3 moveDir = (targetPos - transform.position).normalized;
-        if (moveDir != Vector3.zero)
+        // 💡 Y축 높이는 현재 높이로 고정하고 X, Z축만 이동
+        Vector3 target = currentPath[currentPathIndex];
+        target.y = transform.position.y;
+
+        transform.position = Vector3.MoveTowards(transform.position, target, moveSpeed * Time.deltaTime);
+
+        Vector3 dir = target - transform.position;
+        if (dir != Vector3.zero)
         {
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(moveDir), Time.deltaTime * 10f);
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), 10f * Time.deltaTime);
         }
 
-        if (Vector3.Distance(transform.position, targetPos) < 0.05f)
+        if (Vector3.Distance(transform.position, target) < 0.05f)
         {
-            currentWaypointIndex++;
-
-            if (currentWaypointIndex >= waypoints.Count)
+            currentPathIndex++;
+            if (currentPathIndex >= currentPath.Count)
             {
-                isMoving = false;
-                onReachedDestination?.Invoke();
+                currentPath = null;
+                onMoveComplete?.Invoke();
+                onMoveComplete = null;
             }
         }
     }
 
-    // 핫도그 받기
-    public bool ReceiveHotdog(GameObject hotdog)
+    public void UpdateQueueTarget(Vector3 targetPos)
     {
-        if (IsSatisfied) return false;
-
-        currentAmount++;
-        Destroy(hotdog);
-
-        UpdateUI();
-
-        return true;
-    }
-
-    private void UpdateUI()
-    {
-        if (orderText == null) return;
-
-        int remaining = requestedAmount - currentAmount;
-
-        if (requestedAmount > 0 && remaining > 0)
+        // 이동 중인 경로가 남아있다면 마지막 목적지만 새로운 줄 좌표로 교체
+        if (currentPath != null && currentPath.Count > 0 && currentPathIndex < currentPath.Count)
         {
-            orderText.gameObject.SetActive(true);
-            orderText.text = remaining.ToString();
+            currentPath[currentPath.Count - 1] = targetPos;
         }
         else
         {
-            orderText.gameObject.SetActive(false);
+            // 이미 경로 이동이 완전히 끝난 상태에서 당겨지는 경우에만 새 경로 지정
+            SetPath(new List<Vector3> { targetPos });
         }
     }
 
+    // 카운터 트리거 구역 진입 감지
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.GetComponent<CustomerZone>() != null)
+        {
+            IsAtCounter = true;
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.GetComponent<CustomerZone>() != null)
+        {
+            IsAtCounter = false;
+        }
+    }
+
+    // 빈 테이블 확인 시 주문 생성
+    public void InitOrder(int min, int max)
+    {
+        requestedAmount = UnityEngine.Random.Range(min, max + 1);
+        currentAmount = 0;
+
+        if (orderText != null)
+        {
+            orderText.gameObject.SetActive(true);
+            orderText.text = requestedAmount.ToString();
+        }
+    }
+
+    // 상태 텍스트 표기
     public void ShowStatusText(string message)
     {
         if (orderText == null) return;
         orderText.gameObject.SetActive(true);
         orderText.text = message;
+    }
+
+    // 핫도그 전달받는 함수
+    public bool ReceiveHotdog(GameObject hotdog)
+    {
+        if (requestedAmount == 0 || IsSatisfied) return false;
+
+        currentAmount++;
+        Destroy(hotdog);
+
+        if (orderText != null)
+        {
+            int remain = requestedAmount - currentAmount;
+
+            if (remain > 0)
+            {
+                orderText.text = remain.ToString();
+            }
+            else
+            {
+                // 오더 완료 시 UI 감추기
+                orderText.gameObject.SetActive(false);
+            }
+        }
+
+        return true;
     }
 }

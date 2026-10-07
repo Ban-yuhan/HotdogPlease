@@ -10,16 +10,12 @@ public class CounterStackZone : MonoBehaviour
     [SerializeField] private float ySpacing = 0.2f;       // 높이 간격
     [SerializeField] private float transferInterval = 0.15f; // 주고받는 속도
 
-    //[Header("핫도그 누워있는 각도 조절")]
-    //[SerializeField] private Vector3 hotdogRotation = new Vector3(0f, 0f, 90f);
-
     [Header("프리팹 세팅")]
     [SerializeField] private GameObject hotdogPrefab;
 
     private List<GameObject> stackedItems = new List<GameObject>();
     private ZoneMode currentMode = ZoneMode.None;
     private float timer = 0f;
-
 
     // 영역에 처음 진입할 때 모드 결정!
     private void OnTriggerEnter(Collider other)
@@ -30,14 +26,19 @@ public class CounterStackZone : MonoBehaviour
             if (playerStack == null) return;
 
             // 1. 핫도그를 들고 들어오면 -> 내려놓기(Put) 모드
-            if (playerStack.CurrentCount > 0)
+            if (playerStack.CurrentItemType == ItemType.Hotdog && playerStack.CurrentCount > 0)
             {
                 currentMode = ZoneMode.Put;
             }
-            // 2. 맨손으로 들어오면 -> 집어들기(Take) 모드
-            else
+            // 2. 맨손(None)으로 들어오면 -> 집어들기(Take) 모드
+            else if (playerStack.CurrentItemType == ItemType.None)
             {
                 currentMode = ZoneMode.Take;
+            }
+            // 3. 쓰레기를 들고 오면 아무 작업도 하지 않음
+            else
+            {
+                currentMode = ZoneMode.None;
             }
         }
     }
@@ -59,7 +60,8 @@ public class CounterStackZone : MonoBehaviour
                 // [Put 모드] 플레이어 -> 카운터로 쌓기
                 if (currentMode == ZoneMode.Put)
                 {
-                    if (playerStack.CurrentCount > 0)
+                    // 핫도그를 들고 있고 1개 이상일 때만 진행
+                    if (playerStack.CurrentItemType == ItemType.Hotdog && playerStack.CurrentCount > 0)
                     {
                         GameObject hotdog = playerStack.PopHotdog();
                         if (hotdog != null)
@@ -69,7 +71,7 @@ public class CounterStackZone : MonoBehaviour
                     }
                     else
                     {
-                        // 손이 비면 아무것도 안 함 (다시 집어 들지 않도록 모드 중단)
+                        // 손이 비거나 핫도그가 없으면 모드 중단 (다시 집어 들지 않도록)
                         currentMode = ZoneMode.None;
                     }
                 }
@@ -81,7 +83,12 @@ public class CounterStackZone : MonoBehaviour
                         GameObject hotdog = PopHotdogFromCounter();
                         if (hotdog != null)
                         {
-                            playerStack.AddHotdog(hotdog);
+                            // 💡 AddHotdog 실패 시 핫도그 증발 방지를 위해 카운터에 복구
+                            if (!playerStack.AddHotdog(hotdog))
+                            {
+                                AddHotdogToCounter(hotdog);
+                                currentMode = ZoneMode.None;
+                            }
                         }
                     }
                     else
@@ -111,10 +118,8 @@ public class CounterStackZone : MonoBehaviour
         int index = stackedItems.Count;
         float yPos = index * ySpacing;
 
-        // 2. 위로 높이 쌓기
         hotdog.transform.localPosition = new Vector3(0f, yPos, 0f);
 
-        // 3. 회전은 rotation이 아닌 'localRotation'으로 프리팹 원본값 복사
         if (hotdogPrefab != null)
         {
             hotdog.transform.localRotation = hotdogPrefab.transform.localRotation;

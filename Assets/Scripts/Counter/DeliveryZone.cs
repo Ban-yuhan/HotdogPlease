@@ -1,40 +1,49 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class DeliveryZone : MonoBehaviour
 {
     [SerializeField] private CustomerManager customerManager;
-    [SerializeField] private float giveInterval = 0.15f; // ÇÖµµ±× Àü´Ş ¼Óµµ
+    [SerializeField] private float giveInterval = 0.15f; // í•«ë„ê·¸ ì „ë‹¬ ì†ë„
 
     private float giveTimer = 0f;
 
     private void OnTriggerStay(Collider other)
     {
-        // 1. ÇÃ·¹ÀÌ¾î(¶Ç´Â ¾Ë¹Ù»ı) °¨Áö
+        // 1. í”Œë ˆì´ì–´(ë˜ëŠ” ì•Œë°”ìƒ) ê°ì§€
         if (other.CompareTag("Player") || other.CompareTag("Worker"))
         {
             PlayerStack playerStack = other.GetComponent<PlayerStack>();
             Customer currentCustomer = customerManager != null ? customerManager.CurrentCustomer : null;
 
-            // 2. Á¶°Ç Ã¼Å©: ÇÃ·¹ÀÌ¾î¿¡°Ô ÇÖµµ±×°¡ ÀÖ°í, Ä«¿îÅÍ¿¡ ¼Õ´ÔÀÌ ¼­ÀÖÀ¸¸ç, ÁÖ¹®À» ¾ÆÁ÷ ´Ù ¸ø Ã¤¿üÀ» ¶§.¼Õ´ÔÀÌ 'Ä«¿îÅÍ¿¡ ¿ÏÀüÈ÷ µµÂøÇØ¼­ ´ë±â Áß(IsWaitingAtCounter)'ÀÏ ¶§¸¸ Àü´Ş
-            if (playerStack != null && playerStack.CurrentCount > 0 && currentCustomer != null && currentCustomer.IsWaitingAtCounter && !currentCustomer.IsSatisfied)
+            // ğŸ’¡ 2. ì¡°ê±´ ìˆ˜ì •:
+            // - í”Œë ˆì´ì–´ì—ê²Œ í•«ë„ê·¸ê°€ ìˆê³ (CurrentCount > 0)
+            // - ì¹´ìš´í„° êµ¬ì—­ì— ì†ë‹˜ì´ ìˆìœ¼ë©°(IsAtCounter)
+            // - "No Table!" ìƒíƒœê°€ ì•„ë‹ˆê³  ì£¼ë¬¸ ìˆ˜ëŸ‰ì´ ìƒì„±ë˜ì—ˆê³ (requestedAmount > 0)
+            // - ì•„ì§ ì£¼ë¬¸ì„ ë‹¤ ì±„ìš°ì§€ ëª»í–ˆì„ ë•Œ(!IsSatisfied)
+            if (playerStack != null &&
+                playerStack.CurrentCount > 0 &&
+                currentCustomer != null &&
+                currentCustomer.IsAtCounter &&
+                currentCustomer.requestedAmount > 0 &&
+                !currentCustomer.IsSatisfied)
             {
                 giveTimer += Time.deltaTime;
                 if (giveTimer >= giveInterval)
                 {
                     giveTimer = 0f;
 
-                    // ÇÃ·¹ÀÌ¾î ½ºÅÃ¿¡¼­ ¸Ç À§ ÇÖµµ±× 1°³ »Ì±â
+                    // í”Œë ˆì´ì–´ ìŠ¤íƒì—ì„œ ë§¨ ìœ„ í•«ë„ê·¸ 1ê°œ ë½‘ê¸°
                     GameObject hotdog = playerStack.PopHotdog();
 
                     if (hotdog != null)
                     {
-                        // ¼Õ´Ô¿¡°Ô ÇÖµµ±× Àü´Ş
+                        // ì†ë‹˜ì—ê²Œ í•«ë„ê·¸ ì „ë‹¬
                         currentCustomer.ReceiveHotdog(hotdog);
 
-                        // 3. ÁÖ¹®ÀÌ ¸ğµÎ ¿Ï·áµÇ¾ú´ÂÁö È®ÀÎ
+                        // 3. ì£¼ë¬¸ì´ ëª¨ë‘ ì™„ë£Œë˜ì—ˆëŠ”ì§€ í™•ì¸
                         if (currentCustomer.IsSatisfied)
                         {
-                            // ¿ª¼ø °æ·Î(DoorPosition -> SpawnPoint)·Î µ¹¾Æ°¡°Ô ÇÏ°í »èÁ¦
+                            // í™•ë³´ëœ í…Œì´ë¸”ë¡œ ì´ë™ ë° ì‹ì‚¬ ì‹¤í–‰
                             customerManager.MakeCustomerLeave(currentCustomer);
                         }
                     }
