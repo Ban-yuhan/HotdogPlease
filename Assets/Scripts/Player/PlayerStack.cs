@@ -107,7 +107,21 @@ public class PlayerStack : MonoBehaviour
     {
         if (CurrentItemType != ItemType.Hotdog || stackedItems.Count == 0) return null;
 
-        return PopItem();
+        int lastIndex = stackedItems.Count - 1;
+        GameObject item = stackedItems[lastIndex];
+        stackedItems.RemoveAt(lastIndex);
+
+        if (stackedItems.Count == 0) CurrentItemType = ItemType.None;
+
+        UpdateUI();
+
+        // 💡 [핵심] 부모 관계를 즉시 끊어서 씬 상공/스택 포인트 위치 잔상을 방지
+        if (item != null)
+        {
+            item.transform.SetParent(null);
+        }
+
+        return item;
     }
 
     // 💡 쓰레기 꺼내기 (쓰레기통에 버리기)
@@ -191,6 +205,16 @@ public class PlayerStack : MonoBehaviour
         }
     }
 
+    public bool TryConsumeHotdog()
+    {
+        GameObject hotdog = PopHotdog();
+        if (hotdog != null)
+        {
+            Destroy(hotdog);
+            return true;
+        }
+        return false;
+    }
 
     public int CurrentCount => stackedItems.Count;
 }

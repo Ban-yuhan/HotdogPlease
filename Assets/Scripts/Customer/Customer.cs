@@ -8,11 +8,15 @@ public class Customer : MonoBehaviour
     [SerializeField] private TMP_Text orderText; // 머리 위 텍스트 UI
     [SerializeField] private float moveSpeed = 3f;
 
+    public bool HasArrived => currentPath == null;
+
     public int requestedAmount { get; private set; } = 0;
     public int currentAmount { get; private set; } = 0;
     public bool IsSatisfied => currentAmount >= requestedAmount && requestedAmount > 0;
 
     public bool IsAtCounter { get; private set; } = false; // 카운터 맨 앞(CustomerZone) 도착 여부
+
+    public Table AssignedTable { get; set; } // 💡 나에게 할당된 테이블 기억
 
     private Action onMoveComplete;
     private List<Vector3> currentPath;
@@ -146,5 +150,13 @@ public class Customer : MonoBehaviour
         }
 
         return true;
+    }
+
+    public void ClearStatusText()
+    {
+        if (orderText != null)
+        {
+            orderText.gameObject.SetActive(false);
+        }
     }
 }

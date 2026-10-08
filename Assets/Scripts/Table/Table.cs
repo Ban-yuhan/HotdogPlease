@@ -17,13 +17,20 @@ public class Table : MonoBehaviour
     public MoneyStackZone TableMoneyZone => moneyZone;
 
     public bool IsOccupied { get; private set; } = false; // 손님이 앉아서 먹는 중인가?
+    public bool IsReserved { get; private set; } = false; // 💡 예약 상태 추가
     public bool IsDirty { get; private set; } = false;    // 쓰레기가 남아있는 상태인가?
 
     // 손님이 앉을 수 있는 깨끗하고 비어있는 상태인지 확인
-    public bool IsAvailable => !IsOccupied && !IsDirty;
+    public bool IsAvailable => !IsOccupied && !IsReserved && !HasTrash;
 
     private List<GameObject> spawnedTrashes = new List<GameObject>();
     private float cleanTimer = 0f;
+
+    public void Reserve()
+    {
+        IsReserved = false;
+        IsOccupied = true;
+    }
 
     public bool Occupy()
     {
@@ -112,5 +119,11 @@ public class Table : MonoBehaviour
         }
         spawnedTrashes.Clear();
         IsDirty = false;
+    }
+
+    public void ClearTable()
+    {
+        IsOccupied = false;
+        IsReserved = false;
     }
 }

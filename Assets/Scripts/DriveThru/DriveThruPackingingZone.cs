@@ -89,13 +89,18 @@ public class DriveThruPackagingZone : MonoBehaviour
             case ZoneMode.Pack:
                 if (playerStack.CurrentItemType == ItemType.Hotdog && playerStack.CurrentCount >= 4)
                 {
+                    // 💡 4개를 안전하게 소모 및 파괴
+                    int consumedCount = 0;
                     for (int i = 0; i < 4; i++)
                     {
-                        GameObject hotdog = playerStack.PopHotdog();
-                        if (hotdog != null) Destroy(hotdog);
+                        if (playerStack.TryConsumeHotdog())
+                        {
+                            consumedCount++;
+                        }
                     }
 
-                    if (packagePrefab != null && packagedStackPoint != null)
+                    // 4개가 정상 소모되었을 때만 포장 상자 1개 생성
+                    if (consumedCount == 4 && packagePrefab != null && packagedStackPoint != null)
                     {
                         GameObject package = Instantiate(packagePrefab);
                         AddPackageToZone(package);
@@ -103,7 +108,6 @@ public class DriveThruPackagingZone : MonoBehaviour
                 }
                 else
                 {
-                    // 핫도그가 4개 미만이 되면 더 이상 작업 안 하고 멈춤 (상자를 집지 않음)
                     currentMode = ZoneMode.None;
                 }
                 break;

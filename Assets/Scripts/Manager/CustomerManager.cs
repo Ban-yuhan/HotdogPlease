@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI; // 💡 NavMesh 경로 계산을 위해 필요
 
 public class CustomerManager : MonoBehaviour
 {
@@ -12,7 +13,7 @@ public class CustomerManager : MonoBehaviour
 
     [Header("줄서기 세팅")]
     [SerializeField] private int maxQueueCount = 6;         // 최대 대기 인원
-    [SerializeField] private float queueSpacing = 1.2f;     // 손님 간 줄 간격
+    [SerializeField] private float queueSpacing = 1.2f;      // 손님 간 줄 간격
     [SerializeField] private Vector3 queueDirection = Vector3.back; // 줄 서는 방향
 
     [Header("스폰 세팅")]
@@ -53,7 +54,7 @@ public class CustomerManager : MonoBehaviour
             {
                 spawnTimer = 0f;
                 SpawnCustomer();
-                SetNextSpawnInterval(); // 💡 다음 스폰 시간 랜덤 재설정
+                SetNextSpawnInterval();
             }
         }
     }
@@ -88,25 +89,27 @@ public class CustomerManager : MonoBehaviour
         });
     }
 
-    // CustomerZone 콜라이더 감지(IsAtCounter) 시 오더 처리 코루틴
+    // CustomerZone 주문 처리 루틴
     private IEnumerator ProcessCustomerOrderRoutine(Customer customer)
     {
         while (customerQueue.Count > 0 && customerQueue[0] == customer && customer.requestedAmount == 0)
         {
-            // CustomerZone 콜라이더 영역 안으로 들어온 경우에만 검사
-            if (customer.IsAtCounter)
-            {
-                Table availableTable = TableManager.Instance != null ? TableManager.Instance.GetAvailableTable() : null;
+            Table availableTable = TableManager.Instance != null ? TableManager.Instance.GetAvailableTable() : null;
 
-                if (availableTable != null)
+            if (availableTable != null)
+            {
+                // 빈 테이블 발견 시 즉시 선점(예약) 후 오더 생성
+                availableTable.Reserve();
+                customer.AssignedTable = availableTable;
+
+                customer.InitOrder(minOrder, maxOrder);
+                yield break;
+            }
+            else
+            {
+                // 💡 [핵심] 걸어오는 도중에는 텍스트를 띄우지 않고, 카운터 앞에 멈춰 섰을 때만 표시!
+                if (customer.HasArrived)
                 {
-                    // 빈 테이블 존재 ➔ 오더(주문) 생성
-                    customer.InitOrder(minOrder, maxOrder);
-                    yield break;
-                }
-                else
-                {
-                    // 빈 테이블 없음 ➔ "No Table!" 표시하며 카운터 대기
                     customer.ShowStatusText("No Table!");
                 }
             }
@@ -120,7 +123,7 @@ public class CustomerManager : MonoBehaviour
     {
         if (customer == null || !customerQueue.Contains(customer)) return;
 
-        // 💡 [카운터 돈 적립] 주문 수량 * 100원을 카운터 돈 구역에 생성
+        // [카운터 돈 적립] 주문 수량 * 100원을 카운터 돈 구역에 생성
         int counterMoney = customer.requestedAmount * 100;
         if (moneyZone != null)
         {
@@ -137,13 +140,20 @@ public class CustomerManager : MonoBehaviour
 
     private IEnumerator GoToTableAndEatRoutine(Customer customer)
     {
-        Table availableTable = null;
+        // 💡 [핵심 2] 새로 테이블을 찾지 않고, 주문받을 때 지정된 테이블을 가져옴
+        Table availableTable = customer.AssignedTable;
 
+        // 만약 예외 상황으로 테이블이 없었다면 빈 테이블 대기
         while (availableTable == null)
         {
             if (TableManager.Instance != null)
             {
                 availableTable = TableManager.Instance.GetAvailableTable();
+                if (availableTable != null)
+                {
+                    availableTable.Reserve();
+                    customer.AssignedTable = availableTable;
+                }
             }
 
             if (availableTable == null)
@@ -153,15 +163,35 @@ public class CustomerManager : MonoBehaviour
             }
         }
 
+        // 💡 [핵심 3] 테이블로 출발할 때 머리 위 "No Table!" UI 지우기
+        customer.ClearStatusText();
+
+        // 점유 상태로 확정
         availableTable.Occupy();
 
-        List<Vector3> tablePath = new List<Vector3> { availableTable.CustomerPosition.position };
+        Vector3 startPos = customer.transform.position;
+        Vector3 targetPos = availableTable.CustomerPosition.position;
+
+        NavMeshPath navPath = new NavMeshPath();
+        List<Vector3> tablePath = new List<Vector3>();
+
+        if (NavMesh.CalculatePath(startPos, targetPos, NavMesh.AllAreas, navPath))
+        {
+            foreach (Vector3 corner in navPath.corners)
+            {
+                tablePath.Add(corner);
+            }
+        }
+        else
+        {
+            tablePath.Add(targetPos);
+        }
+
         bool reachedTable = false;
         customer.SetPath(tablePath, () => { reachedTable = true; });
 
         yield return new WaitUntil(() => reachedTable);
 
-        // 💡 "Eating..." 텍스트를 띄우지 않고 4초간 식사 진행
         yield return new WaitForSeconds(4.0f);
 
         int tipMoney = (customer.requestedAmount * 100) / 2;
@@ -172,12 +202,28 @@ public class CustomerManager : MonoBehaviour
 
     private void SendCustomerToExit(Customer customer)
     {
-        List<Vector3> leavePath = new List<Vector3>
+        Vector3 startPos = customer.transform.position;
+        Vector3 firstExitTarget = exitPos1.position;
+
+        NavMeshPath navPath = new NavMeshPath();
+        List<Vector3> leavePath = new List<Vector3>();
+
+        // 💡 1. 현재 테이블 위치에서 첫 번째 퇴장 지점(exitPos1)까지 NavMesh로 우회 경로 계산
+        if (NavMesh.CalculatePath(startPos, firstExitTarget, NavMesh.AllAreas, navPath))
         {
-            exitPos1.position,
-            exitPos2.position,
-            exitPos3.position
-        };
+            foreach (Vector3 corner in navPath.corners)
+            {
+                leavePath.Add(corner);
+            }
+        }
+        else
+        {
+            leavePath.Add(firstExitTarget);
+        }
+
+        // 💡 2. 우회 경로 끝에 남은 퇴장 경로(Pos 2 -> Pos 3) 연결
+        if (exitPos2 != null) leavePath.Add(exitPos2.position);
+        if (exitPos3 != null) leavePath.Add(exitPos3.position);
 
         customer.SetPath(leavePath, () =>
         {
@@ -192,10 +238,8 @@ public class CustomerManager : MonoBehaviour
             Customer c = customerQueue[i];
             Vector3 newQueuePos = GetQueuePosition(i);
 
-            // 💡 경로의 마지막 목적지만 새로운 대기열 위치로 업데이트
             c.UpdateQueueTarget(newQueuePos);
 
-            // 0번(카운터 맨 앞) 자리가 되었고 아직 주문을 시작하지 않은 경우
             if (i == 0 && c.requestedAmount == 0)
             {
                 StartCoroutine(ProcessCustomerOrderRoutine(c));
