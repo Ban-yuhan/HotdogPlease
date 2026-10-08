@@ -561,7 +561,7 @@ Transform:
   m_GameObject: {fileID: 192084671}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -2.13, y: 0, z: 8.66}
+  m_LocalPosition: {x: 0.01, y: 0, z: 2.85}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1064,7 +1064,7 @@ Transform:
   m_GameObject: {fileID: 394291316}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.07, y: -1.87, z: 10.933}
+  m_LocalPosition: {x: -1.29, y: -1.87, z: 10.933}
   m_LocalScale: {x: 1, y: 0.1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2346,7 +2346,7 @@ Transform:
   m_GameObject: {fileID: 635304488}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -10.23, y: 0.48, z: 8.79}
+  m_LocalPosition: {x: -10.67, y: 0.48, z: 8.79}
   m_LocalScale: {x: 2.1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3839,7 +3839,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1017730988}
   m_Layer: 0
-  m_Name: DoorPosition
+  m_Name: CustomerEntrance
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3854,7 +3854,7 @@ Transform:
   m_GameObject: {fileID: 1017730987}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 2.69, y: -1.8068268, z: 0.9866654}
+  m_LocalPosition: {x: 2, y: -1.8068268, z: 0.9866654}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4457,7 +4457,7 @@ Transform:
   m_GameObject: {fileID: 1195012751}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -2.19, y: 0, z: 0}
+  m_LocalPosition: {x: 0.3, y: 0, z: -0.8}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5170,7 +5170,7 @@ Transform:
   m_GameObject: {fileID: 1297395969}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -7.52, y: 0, z: 0}
+  m_LocalPosition: {x: 8.19, y: 0, z: -0.8}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5523,7 +5523,7 @@ MonoBehaviour:
   doorPosition: {fileID: 1017730988}
   exitDoorPosition: {fileID: 0}
   customerZone: {fileID: 1601244874}
-  maxQueueCount: 6
+  maxQueueCount: 4
   queueSpacing: 1.2
   queueDirection: {x: 0, y: 0, z: -1}
   customerPrefab: {fileID: 1958143708502849182, guid: 43f12b885bfceff4ea3211120be0f194, type: 3}
@@ -5894,7 +5894,7 @@ Transform:
   m_GameObject: {fileID: 1568936503}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.07, y: -1.87, z: 13.61}
+  m_LocalPosition: {x: -1.2900003, y: -1.87, z: 13.61}
   m_LocalScale: {x: 1, y: 0.1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6052,7 +6052,7 @@ Transform:
   m_GameObject: {fileID: 1601244873}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 2.74, y: -1.7968268, z: 8.626665}
+  m_LocalPosition: {x: 2, y: -1.7968268, z: 8.6}
   m_LocalScale: {x: 0.7, y: 0.01, z: 0.7}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7203,7 +7203,7 @@ Transform:
   m_GameObject: {fileID: 1972187151}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 2.08, y: -2.0356, z: 1.8556}
+  m_LocalPosition: {x: 2.63, y: -2.0356, z: 1.8556}
   m_LocalScale: {x: 3.451194, y: 0.5424, z: 0.37449062}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7384,8 +7384,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1973891770}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -15.18, y: 0.43, z: 10.9448}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -15.18, y: 0.4300003, z: 10.9448}
   m_LocalScale: {x: 1.5835, y: 1, z: 4.4496}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7613,8 +7613,8 @@ SceneRoots:
   - {fileID: 635304492}
   - {fileID: 793353270}
   - {fileID: 233543314}
+  - {fileID: 1973891774}
+  - {fileID: 157313088}
   - {fileID: 1221280651}
   - {fileID: 1253843103}
-  - {fileID: 157313088}
   - {fileID: 425267780}
-  - {fileID: 1973891774}
