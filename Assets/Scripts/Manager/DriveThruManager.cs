@@ -31,6 +31,8 @@ public class DriveThruManager : MonoBehaviour
 
     private void Update()
     {
+        if (orderWindowPoint == null || !orderWindowPoint.gameObject.activeInHierarchy) return;
+
         HandleCarSpawning();
     }
 

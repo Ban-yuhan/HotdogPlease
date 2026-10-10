@@ -1,10 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI; // 💡 NavMesh 경로 계산을 위해 필요
+using UnityEngine.AI;
 
 public class CustomerManager : MonoBehaviour
 {
+    public static CustomerManager Instance { get; private set; }
+
     [Header("위치 포인트들")]
     [SerializeField] private Transform spawnPoint;
     [SerializeField] private Transform doorPosition;        // 입장용 문
@@ -36,8 +38,19 @@ public class CustomerManager : MonoBehaviour
 
     private List<Customer> customerQueue = new List<Customer>();
 
-    // DeliveryZone에서 건네줄 '현재 맨 앞 손님'
     public Customer CurrentCustomer => (customerQueue.Count > 0) ? customerQueue[0] : null;
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
 
     private void Start()
     {
@@ -46,7 +59,8 @@ public class CustomerManager : MonoBehaviour
 
     private void Update()
     {
-        // 최대 대기열 인원 미만일 때만 타이머 진행
+        if (customerZone == null || !customerZone.gameObject.activeInHierarchy) return;
+
         if (customerQueue.Count < maxQueueCount)
         {
             spawnTimer += Time.deltaTime;
@@ -98,7 +112,6 @@ public class CustomerManager : MonoBehaviour
 
             if (availableTable != null)
             {
-                // 빈 테이블 발견 시 즉시 선점(예약) 후 오더 생성
                 availableTable.Reserve();
                 customer.AssignedTable = availableTable;
 
@@ -107,7 +120,18 @@ public class CustomerManager : MonoBehaviour
             }
             else
             {
-                // 💡 [핵심] 걸어오는 도중에는 텍스트를 띄우지 않고, 카운터 앞에 멈춰 섰을 때만 표시!
+                // 💡 유니티 Find API를 쓰지 않고 TableManager에게 활성화된 테이블 유무를 직접 확인!
+                bool hasActiveTable = TableManager.Instance != null && TableManager.Instance.HasAnyActiveTable();
+
+                // 씬에 해금된 테이블이 1개도 없다면 -> 테이크아웃 전용 주문 생성
+                if (!hasActiveTable)
+                {
+                    customer.AssignedTable = null;
+                    customer.InitOrder(minOrder, maxOrder);
+                    yield break;
+                }
+
+                // 테이블은 있으나 만석인 경우에만 "No Table!" 표시
                 if (customer.HasArrived)
                 {
                     customer.ShowStatusText("No Table!");
@@ -123,27 +147,31 @@ public class CustomerManager : MonoBehaviour
     {
         if (customer == null || !customerQueue.Contains(customer)) return;
 
-        // [카운터 돈 적립] 주문 수량 * 100원을 카운터 돈 구역에 생성
         int counterMoney = customer.requestedAmount * 100;
         if (moneyZone != null)
         {
             moneyZone.AddMoney(counterMoney);
         }
 
-        // 대기열 목록에서 제거 및 뒤 손님 앞으로 이동
         customerQueue.Remove(customer);
         UpdateQueuePositions();
 
-        // 식사 진행 코루틴 시작
-        StartCoroutine(GoToTableAndEatRoutine(customer));
+        // 💡 테이블이 지정되어 있으면 식사하러 가고, 없으면(테이크아웃) 즉시 퇴장
+        if (customer.AssignedTable != null)
+        {
+            StartCoroutine(GoToTableAndEatRoutine(customer));
+        }
+        else
+        {
+            customer.ClearStatusText();
+            SendCustomerToExit(customer);
+        }
     }
 
     private IEnumerator GoToTableAndEatRoutine(Customer customer)
     {
-        // 💡 [핵심 2] 새로 테이블을 찾지 않고, 주문받을 때 지정된 테이블을 가져옴
         Table availableTable = customer.AssignedTable;
 
-        // 만약 예외 상황으로 테이블이 없었다면 빈 테이블 대기
         while (availableTable == null)
         {
             if (TableManager.Instance != null)
@@ -163,10 +191,7 @@ public class CustomerManager : MonoBehaviour
             }
         }
 
-        // 💡 [핵심 3] 테이블로 출발할 때 머리 위 "No Table!" UI 지우기
         customer.ClearStatusText();
-
-        // 점유 상태로 확정
         availableTable.Occupy();
 
         Vector3 startPos = customer.transform.position;
@@ -200,7 +225,7 @@ public class CustomerManager : MonoBehaviour
         SendCustomerToExit(customer);
     }
 
-    private void SendCustomerToExit(Customer customer)
+    public void SendCustomerToExit(Customer customer)
     {
         Vector3 startPos = customer.transform.position;
         Vector3 firstExitTarget = exitPos1.position;
@@ -208,7 +233,6 @@ public class CustomerManager : MonoBehaviour
         NavMeshPath navPath = new NavMeshPath();
         List<Vector3> leavePath = new List<Vector3>();
 
-        // 💡 1. 현재 테이블 위치에서 첫 번째 퇴장 지점(exitPos1)까지 NavMesh로 우회 경로 계산
         if (NavMesh.CalculatePath(startPos, firstExitTarget, NavMesh.AllAreas, navPath))
         {
             foreach (Vector3 corner in navPath.corners)
@@ -221,7 +245,6 @@ public class CustomerManager : MonoBehaviour
             leavePath.Add(firstExitTarget);
         }
 
-        // 💡 2. 우회 경로 끝에 남은 퇴장 경로(Pos 2 -> Pos 3) 연결
         if (exitPos2 != null) leavePath.Add(exitPos2.position);
         if (exitPos3 != null) leavePath.Add(exitPos3.position);
 

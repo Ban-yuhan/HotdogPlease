@@ -18,8 +18,7 @@ public class TableManager : MonoBehaviour
     {
         foreach (Table table in allTables)
         {
-            // IsAvailable = (!IsOccupied && !IsDirty)
-            if (table != null && table.IsAvailable)
+            if (table != null && table.gameObject.activeInHierarchy && table.IsAvailable)
             {
                 return table;
             }
@@ -27,5 +26,20 @@ public class TableManager : MonoBehaviour
 
         // 4개 테이블 모두 사용 중이거나 쓰레기가 남은 상태면 null 반환
         return null;
+    }
+
+    public bool HasAnyActiveTable()
+    {
+        // 테이블 리스트/배열 중 켜져(activeInHierarchy) 있는 게 1개라도 있는지 확인
+        if (allTables == null) return false;
+
+        foreach (var table in allTables)
+        {
+            if (table != null && table.gameObject.activeInHierarchy)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

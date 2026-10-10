@@ -1,14 +1,15 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using TMPro;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
-    [Header("ÀçÈ­ UI")]
+    [Header("ì¬í™” UI")]
     [SerializeField] private TextMeshProUGUI moneyText;
 
-    private int currentMoney = 0;
+    [SerializeField] private int currentMoney = 200;
+
     public int CurrentMoney => currentMoney;
 
     private void Awake()
@@ -29,30 +30,43 @@ public class GameManager : MonoBehaviour
         UpdateMoneyUI();
     }
 
-    // µ· È¹µæ
+    // ëˆ íšë“
     public void AddMoney(int amount)
     {
         currentMoney += amount;
         UpdateMoneyUI();
     }
 
-    // µ· ¼Òºñ (¾÷±×·¹ÀÌµå, ±¸¿ª ÇØ±İ µî)
+    // ëˆ ì†Œë¹„ (ì—…ê·¸ë ˆì´ë“œ, êµ¬ì—­ í•´ê¸ˆ ë“±)
     public bool TryUseMoney(int amount)
     {
         if (currentMoney >= amount)
         {
             currentMoney -= amount;
             UpdateMoneyUI();
-            return true; // ±¸¸Å ¼º°ø
+            return true; // êµ¬ë§¤ ì„±ê³µ
         }
-        return false; // µ· ºÎÁ·
+        return false; // ëˆ ë¶€ì¡±
     }
 
     private void UpdateMoneyUI()
     {
         if (moneyText != null)
         {
-            moneyText.text = $"$ {currentMoney:N0}"; // 1,000 ´ÜÀ§ ½°Ç¥ Ç¥±â
+            moneyText.text = $"$ {currentMoney:N0}"; // 1,000 ë‹¨ìœ„ ì‰¼í‘œ í‘œê¸°
         }
+    }
+
+    public bool DeductMoney(int amount)
+    {
+        if (currentMoney >= amount)
+        {
+            currentMoney -= amount;
+
+            UpdateMoneyUI();
+
+            return true;
+        }
+        return false;
     }
 }

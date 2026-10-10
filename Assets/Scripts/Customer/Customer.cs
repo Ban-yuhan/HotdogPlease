@@ -24,7 +24,6 @@ public class Customer : MonoBehaviour
 
     private void Awake()
     {
-        // 스폰 직후 머리 위 UI 비활성화
         if (orderText != null)
         {
             orderText.gameObject.SetActive(false);
@@ -50,7 +49,6 @@ public class Customer : MonoBehaviour
     {
         if (currentPath == null || currentPathIndex >= currentPath.Count) return;
 
-        // 💡 Y축 높이는 현재 높이로 고정하고 X, Z축만 이동
         Vector3 target = currentPath[currentPathIndex];
         target.y = transform.position.y;
 
@@ -76,19 +74,16 @@ public class Customer : MonoBehaviour
 
     public void UpdateQueueTarget(Vector3 targetPos)
     {
-        // 이동 중인 경로가 남아있다면 마지막 목적지만 새로운 줄 좌표로 교체
         if (currentPath != null && currentPath.Count > 0 && currentPathIndex < currentPath.Count)
         {
             currentPath[currentPath.Count - 1] = targetPos;
         }
         else
         {
-            // 이미 경로 이동이 완전히 끝난 상태에서 당겨지는 경우에만 새 경로 지정
             SetPath(new List<Vector3> { targetPos });
         }
     }
 
-    // 카운터 트리거 구역 진입 감지
     private void OnTriggerEnter(Collider other)
     {
         if (other.GetComponent<CustomerZone>() != null)
@@ -105,7 +100,6 @@ public class Customer : MonoBehaviour
         }
     }
 
-    // 빈 테이블 확인 시 주문 생성
     public void InitOrder(int min, int max)
     {
         requestedAmount = UnityEngine.Random.Range(min, max + 1);
@@ -118,7 +112,6 @@ public class Customer : MonoBehaviour
         }
     }
 
-    // 상태 텍스트 표기
     public void ShowStatusText(string message)
     {
         if (orderText == null) return;
@@ -144,8 +137,12 @@ public class Customer : MonoBehaviour
             }
             else
             {
-                // 오더 완료 시 UI 감추기
                 orderText.gameObject.SetActive(false);
+
+                if (CustomerManager.Instance != null)
+                {
+                    CustomerManager.Instance.MakeCustomerLeave(this);
+                }
             }
         }
 
