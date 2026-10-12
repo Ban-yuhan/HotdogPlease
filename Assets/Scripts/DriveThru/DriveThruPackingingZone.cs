@@ -18,7 +18,6 @@ public class DriveThruPackagingZone : MonoBehaviour
     public int PackageCount => stackedPackages.Count;
     public bool HasPackage => stackedPackages.Count > 0;
 
-    // 💡 [핵심] 트리거 구역에 들어가는 "순간"의 상태만 체크하여 모드 고정!
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player") || other.CompareTag("Worker"))
@@ -57,20 +56,16 @@ public class DriveThruPackagingZone : MonoBehaviour
         }
     }
 
-    // 💡 진입 당시의 손 상태에 맞춰 진입 모드 지정
     private void DetermineModeAtEnter(PlayerStack playerStack)
     {
-        // 1. 핫도그 4개 이상 들고 진입 ➔ "만들기만" 모드
         if (playerStack.CurrentItemType == ItemType.Hotdog && playerStack.CurrentCount >= 4)
         {
             currentMode = ZoneMode.Pack;
         }
-        // 2. 포장 상자를 들고 진입 ➔ "두기만" 모드
         else if (playerStack.CurrentItemType == ItemType.Package && playerStack.CurrentCount > 0)
         {
             currentMode = ZoneMode.Put;
         }
-        // 3. 빈손(None)으로 진입 ➔ "들기만" 모드
         else if (playerStack.CurrentItemType == ItemType.None && HasPackage)
         {
             currentMode = ZoneMode.Take;
@@ -85,11 +80,9 @@ public class DriveThruPackagingZone : MonoBehaviour
     {
         switch (currentMode)
         {
-            // [만들기만]: 핫도그 4개 소모 후 상자 생성 (핫도그 소진 시 중단)
             case ZoneMode.Pack:
                 if (playerStack.CurrentItemType == ItemType.Hotdog && playerStack.CurrentCount >= 4)
                 {
-                    // 💡 4개를 안전하게 소모 및 파괴
                     int consumedCount = 0;
                     for (int i = 0; i < 4; i++)
                     {
@@ -99,7 +92,6 @@ public class DriveThruPackagingZone : MonoBehaviour
                         }
                     }
 
-                    // 4개가 정상 소모되었을 때만 포장 상자 1개 생성
                     if (consumedCount == 4 && packagePrefab != null && packagedStackPoint != null)
                     {
                         GameObject package = Instantiate(packagePrefab);
@@ -112,7 +104,6 @@ public class DriveThruPackagingZone : MonoBehaviour
                 }
                 break;
 
-            // [들기만]: 발판 위에 쌓인 상자를 플레이어 손으로 수거 (가득 차면 중단)
             case ZoneMode.Take:
                 if (HasPackage && !playerStack.IsFull)
                 {
@@ -132,7 +123,6 @@ public class DriveThruPackagingZone : MonoBehaviour
                 }
                 break;
 
-            // [두기만]: 플레이어 손의 상자를 발판으로 내려놓음 (손이 비면 중단)
             case ZoneMode.Put:
                 if (playerStack.CurrentItemType == ItemType.Package && playerStack.CurrentCount > 0)
                 {
@@ -144,7 +134,6 @@ public class DriveThruPackagingZone : MonoBehaviour
                 }
                 else
                 {
-                    // 손이 비면 멈춤 (다시 들지 않음)
                     currentMode = ZoneMode.None;
                 }
                 break;

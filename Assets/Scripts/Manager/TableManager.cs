@@ -42,4 +42,17 @@ public class TableManager : MonoBehaviour
         }
         return false;
     }
+
+    public Table GetDirtyTable()
+    {
+        if (allTables == null) return null;
+        foreach (var table in allTables)
+        {
+            if (table != null && table.gameObject.activeInHierarchy && table.HasTrash)
+            {
+                return table;
+            }
+        }
+        return null;
+    }
 }

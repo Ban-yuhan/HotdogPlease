@@ -3,12 +3,14 @@ using UnityEngine;
 
 public class CounterStackZone : MonoBehaviour
 {
+    public static CounterStackZone ActiveZone { get; private set; }
+
     private enum ZoneMode { None, Put, Take }
 
     [Header("카운터 쌓기 세팅")]
-    [SerializeField] private Transform stackPosition;     // 핫도그가 쌓일 위치 (StackPosition)
-    [SerializeField] private float ySpacing = 0.2f;       // 높이 간격
-    [SerializeField] private float transferInterval = 0.15f; // 주고받는 속도
+    [SerializeField] private Transform stackPosition;
+    [SerializeField] private float ySpacing = 0.2f;
+    [SerializeField] private float transferInterval = 0.15f;
 
     [Header("프리팹 세팅")]
     [SerializeField] private GameObject hotdogPrefab;
@@ -17,7 +19,20 @@ public class CounterStackZone : MonoBehaviour
     private ZoneMode currentMode = ZoneMode.None;
     private float timer = 0f;
 
-    // 영역에 처음 진입할 때 모드 결정!
+    // 💡 한도가 없으므로 IsFull은 항상 false, CurrentCount만 제공
+    public bool IsFull => false;
+    public int CurrentCount => stackedItems.Count;
+
+    private void OnEnable()
+    {
+        ActiveZone = this;
+    }
+
+    private void OnDisable()
+    {
+        if (ActiveZone == this) ActiveZone = null;
+    }
+
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player") || other.CompareTag("Worker"))
@@ -25,17 +40,14 @@ public class CounterStackZone : MonoBehaviour
             PlayerStack playerStack = other.GetComponent<PlayerStack>();
             if (playerStack == null) return;
 
-            // 1. 핫도그를 들고 들어오면 -> 내려놓기(Put) 모드
             if (playerStack.CurrentItemType == ItemType.Hotdog && playerStack.CurrentCount > 0)
             {
                 currentMode = ZoneMode.Put;
             }
-            // 2. 맨손(None)으로 들어오면 -> 집어들기(Take) 모드
             else if (playerStack.CurrentItemType == ItemType.None)
             {
                 currentMode = ZoneMode.Take;
             }
-            // 3. 쓰레기를 들고 오면 아무 작업도 하지 않음
             else
             {
                 currentMode = ZoneMode.None;
@@ -57,10 +69,8 @@ public class CounterStackZone : MonoBehaviour
             {
                 timer = 0f;
 
-                // [Put 모드] 플레이어 -> 카운터로 쌓기
                 if (currentMode == ZoneMode.Put)
                 {
-                    // 핫도그를 들고 있고 1개 이상일 때만 진행
                     if (playerStack.CurrentItemType == ItemType.Hotdog && playerStack.CurrentCount > 0)
                     {
                         GameObject hotdog = playerStack.PopHotdog();
@@ -71,11 +81,9 @@ public class CounterStackZone : MonoBehaviour
                     }
                     else
                     {
-                        // 손이 비거나 핫도그가 없으면 모드 중단 (다시 집어 들지 않도록)
                         currentMode = ZoneMode.None;
                     }
                 }
-                // [Take 모드] 카운터 -> 플레이어로 가져오기
                 else if (currentMode == ZoneMode.Take)
                 {
                     if (!playerStack.IsFull && stackedItems.Count > 0)
@@ -83,7 +91,6 @@ public class CounterStackZone : MonoBehaviour
                         GameObject hotdog = PopHotdogFromCounter();
                         if (hotdog != null)
                         {
-                            // 💡 AddHotdog 실패 시 핫도그 증발 방지를 위해 카운터에 복구
                             if (!playerStack.AddHotdog(hotdog))
                             {
                                 AddHotdogToCounter(hotdog);
@@ -93,7 +100,6 @@ public class CounterStackZone : MonoBehaviour
                     }
                     else
                     {
-                        // 가득 차거나 카운터가 비면 동작 중단
                         currentMode = ZoneMode.None;
                     }
                 }
@@ -110,10 +116,21 @@ public class CounterStackZone : MonoBehaviour
         }
     }
 
-    // 카운터에 핫도그 쌓기
+    // 💡 직원 연동용: 한도 없이 무조건 카운터에 쌓기
+    public bool PushHotdog(GameObject hotdog)
+    {
+        AddHotdogToCounter(hotdog);
+        return true;
+    }
+
+    public GameObject PopHotdog()
+    {
+        return PopHotdogFromCounter();
+    }
+
     private void AddHotdogToCounter(GameObject hotdog)
     {
-        hotdog.transform.SetParent(stackPosition);
+        hotdog.transform.SetParent(stackPosition != null ? stackPosition : transform);
 
         int index = stackedItems.Count;
         float yPos = index * ySpacing;
@@ -128,7 +145,6 @@ public class CounterStackZone : MonoBehaviour
         stackedItems.Add(hotdog);
     }
 
-    // 카운터에서 맨 위 핫도그 꺼내기
     private GameObject PopHotdogFromCounter()
     {
         if (stackedItems.Count == 0) return null;
